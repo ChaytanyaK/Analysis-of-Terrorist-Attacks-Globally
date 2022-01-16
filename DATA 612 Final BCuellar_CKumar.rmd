@@ -1,0 +1,540 @@
+---
+title: "DATA 612 Final Project"
+author: "Brenda Cuellar and Chaytanya Kumar"
+date: "11/09/2021"
+output:
+  html_document:
+    df_print: paged
+  word_document: default
+---
+# An Analysis of Terrorist Attacks Globally 1970-2018 Using The Global Terrorism Database (GTD)
+
+## 1. Importing the data
+```{r} 
+library(readxl)
+library(tidyverse)
+library(nycflights13)
+```
+```{r}
+read_excel("globalterrorismdatabase_final.xlsx")->gtd_data
+gtd_data
+## gtd_data is the raw data
+dim(gtd_data)
+```
+The data set gtd_data has 201183 rows and 16 columns about each terrorism incident. This data set is an analysis of 201,183 incidents of terrorism over 48 years. 
+
+## 2. Presenting the data as a data frame and a tibble
+```{r}
+class(gtd_data)
+  ## The dataset gtd_data is a data frame.
+is.data.frame(gtd_data)
+as.data.frame(gtd_data)->gtd
+is.tibble(gtd)
+  ## The dataset gtd_data is not a tibble.
+as.tibble(gtd)->gtd
+is.tibble(as.tibble(gtd))
+  ## Now the data set gtd has been transformed into a tibble.
+```
+## 3. Explaining the data
+The GTD is an open-source database produced by the National Consortium for the Study of Terrorism and Responses to Terrorism (START), based in the University of Maryland. The GTD provides information on domestic and international terrorist attacks around the world since 1970, and now includes more than 200,000 events. For each event, a wide range of information is available, including the date and location of the incident, the weapons used, nature of the target, the number of casualties, and – when identifiable – the group or individual responsible.
+
+The variables in our final data set, after tidying, are: 
+
+1. **year** - year of incident from 1970 to 2018
+2. **country** - the GTD collects data on terrorist incidents from around the world. Note some country names change over time, e.g. East Germany (GDR) and West Germany (FRG) in 1970 are combined into Germany in 2018.
+3. **region** - region of incident
+4. **provstate** - province or state of incident
+5. **city** - city of incident
+6. **attacktype** and  7. **attack** - These variables describe the general method of attack and often reflect the broad class of tactics used. It consists of 9 categories. We included **attacktype** as the quantitative variable to allow for better analyses. 
+  * 1-Assassination
+  * 2-Armed Assault
+  * 3-Bombing/Explosion
+  * 4-Hijacking
+  * 5-Hostage Taking (Barricade Incident)
+  * 6-Hostage Taking (Kidnapping)
+  * 7-Facility/Infrastructure Attack
+  * 8-Unarmed Assault
+  * 9-Unknown
+8. **targettype** and 9. **target** - The target/victim type variables descrive the general type of target/victim and consists of 22 categories. We included **targettype** as the quantitative variable to allow for better analyses. 
+  * 1-Business
+  * 2-Government (General)
+  * 3-Police
+  * 4-Military
+  * 5-Abortion Related
+  * 6-Airports & Aircraft
+  * 7-Government (Diplomatic)
+  * 8-Educational Institution
+  * 9-Food or Water Supply
+  * 10-Journalists & Media
+  * 11-Maritime (includes ports and maritime facilities)
+  * 12-NGO
+  * 13-Other
+  * 14-Private Citizens & Property
+  * 15-Religious Figures/Institutions
+  * 16-Telecommunication
+  * 17-Terrorists/Non-State Militia
+  * 18-Tourists
+  * 19-Transportation
+  * 20-Unknown
+  * 21-Utilities
+  * 22-Violent Political Party
+10. **group** - This is a text variable in the data set and it describes the name of the group that carried out the attack. Not all incidents were claimed by a group or could be attributed to a group. 
+11. **motive** - This is a text variable in the data set and it describes the motive recorded in reports of the incident. The motive is only recorded if explicitly mentioned. Note this variable is only systematically available with incidents occurring after 1997. 
+12. **weapontype** and 13. **weapon** - This variable describes the the general type of weapon used in the incident and consists of 13 categories. We included **weapontype** as the quantitative variable to allow for better analyses. 
+  * 1-Biological                                                                 
+  * 2-Chemical                                                                   
+  * 3-Radiological                                                                 
+  * 4-Nuclear                                                             
+  * 5-Firearms                                                                  
+  * 6-Explosives                                                                
+  * 7-Fake Weapons                                                                     
+  * 8-Incendiary                                                                     
+  * 9-Melee                                                           
+  * 10-Vehicle (not to include vehicle-borne explosives, i.e., car or truck bombs)                                                        
+  * 11-Sabotage Equipment                                                                     
+  * 12-Other
+  * 13-Unknown
+14. **killed** - This variable describes the number of total confirmed fatalities for the incident. 
+15. **wounded** - This variable describes the number of confirmed non-fatal injuries to both perpetrator and victims. 
+16. **ransom** - This is a categorical variable that describes if the incident involved a demand of monetary ransom. Here 1 = yes, 0 = no, and -9 = unknown. 
+
+## 4. Tydying the data
+**First**, we used rename() to make some of the variable/column names shorter and simpler. 
+```{r}
+library(dplyr)
+gtd_data%>%
+  rename("year"=iyear)%>%
+  rename("country"=country_txt)%>%
+  rename("region"=region_txt)%>%
+  rename("attack"=attacktype_txt)%>%
+  rename("targettype"=targtype1)%>%
+  rename("target"=targtype1_txt)%>%
+  rename("group"=gname)%>%
+  rename("weapontype"=weaptype1)%>%
+  rename("weapon"=weaptype1_txt)%>%
+  rename("killed"=nkill)%>%
+  rename("wounded"=nwound)->gtd
+## gtd is final data set for our use
+```
+**Second**, we looked at the levels of categorical variables to see if we could tidy some of the entries. 
+```{r}
+library(forcats)
+levels(factor(gtd$attack))
+```
+The variable *attack* has 9 levels. Since hostage taking is used twice to describe an attack type, we are going to change the entries. We are going to change "Hostage Taking (Kidnapping)" into "H-Kidnapping" and change "Hostage Taking (Barricade Incident)" into "H-Barricade" to avoid confusion.
+```{r}
+gtd[gtd=="Hostage Taking (Kidnapping)"]<-"H-Kidnapping"
+gtd[gtd=="Hostage Taking (Barricade Incident)"]<-"H-Barricade" 
+## check the levels again
+levels(factor(gtd$attack)) 
+## entries successfully changed
+```
+```{r}
+levels(factor(gtd$target))
+  ## target has 22 levels
+```
+The variable *target* has 9 levels.  Since government is used twice to describe an target type, we are going to change the entries. We are going to change "Government (Diplomatic)" to "G-Diplomatic" and change "Government (General)" to "G-General" to avoid confusion.
+```{r}
+gtd[gtd=="Government (Diplomatic)"]<-"G-Diplomatic"
+gtd[gtd=="Government (General)"]<-"G-General"
+## check the levels again
+levels(factor(gtd$target)) 
+## entries successfully changed     
+```
+```{r}
+levels(factor(gtd$weapon))
+  ## weapon has 12 levels
+gtd%>%
+  filter(weapon=="nuclear")
+## confirming nuclear has 0 entries
+```
+The variable *weapon* has 13 categories, but since nuclear has 0 entries  R is registering it as 12 levels. This is expected since terrorists do not have readily available access to nuclear materials. Since the entry "Vehicle (not to include vehicle-borne explosives, i.e., car or truck bombs)" is very long, we decided to change it to "Vehicle-NE" to make it easier for visualization.
+```{r}
+gtd[gtd=="Vehicle (not to include vehicle-borne explosives, i.e., car or truck bombs)"]<-"Vehicle-NE"
+## check the levels again
+levels(factor(gtd$weapon)) 
+## entries successfully changed  
+```
+```{r}
+nlevels(factor(gtd$country))
+  ## country has 205 levels
+```
+We did not want to see every country listed individually so we used nlevels() to see a total number of the countries in the data set. 
+*The final product.*
+```{r}
+gtd
+#view(gtd)
+```
+## 5. Data Visualization
+
+### Terrorist Attacks Globally by Year 1970-2018
+We wanted to see what years have experienced the highest number of terrorist attacks and if there is some global trend over time. 
+```{r}
+library(dplyr)
+gtd%>%
+  count(year)%>%
+  arrange(desc(n))->gtd_year
+gtd_year%>%
+  print(n=10)
+  ## number of terrorist attacks internationally per year since 1970 
+  ## 2014, 2015, 2016 have the highest numbers
+```
+Based on the data table, the 9 out of the 10 years with the highest number of recorded terrorist incidents are in the 2010s. This makes sense since the Arab Spring began in 2010, the surge of U.S. and allied troops to Iraq and Afghanistan in the Obama administration, the rise of ISIS in the late 2000s, and the expansion of terrorist networks worldwide with the growth of the Internet and social media. 
+```{r}
+
+library(ggrepel)
+
+ggplot(data = gtd_year)+
+  geom_point(mapping = aes(x = year, y = n), stat = "identity")+
+  xlab("Year")+
+  ylab("Number of Terrorist Attacks")+
+  ggtitle("Number of Terrorist Attacks Internationally per Year 1970-2018")+
+  theme(plot.title = element_text(color="black", size=14, face="bold", hjust=0.5))
+```
+```{r}
+cor(gtd_year)
+cor(gtd_year$year, gtd_year$n)
+  ## There is a moderately, positive correlation between number of attacks and the year.
+lm(n~year, data=gtd_year)->lm_year
+lm_year
+summary(lm_year)
+  ## number of terrorist attacks = -367004.3 + year(186.1)
+  ## On average, for every one year increase, the number of terrorist attacks increases by 186.1
+```
+```{r}
+ggplot(data = gtd_year)+
+  geom_point(mapping = aes(x = year, y = n), stat = "identity")+
+  xlab("Year")+
+  ylab("Number of Terrorist Attacks")+
+  ggtitle("Number of Terrorist Attacks Internationally per Year 1970-2018")+
+  theme(plot.title = element_text(color="black", size=14, face="bold", hjust=0.5))+
+  geom_smooth(aes(x = year, y = n),method = "lm", col = "green", se=FALSE)
+```
+
+We ran a linear regression model to check if there is relationship between year and the number of terrorism attacks that happen (n). We found that on average, the number of terrorist attacks increases by 186.1 each year. We also ran a correlation test and found that the correlation coefficient=0.6919961 so there is a moderate, positive correlation between year and the number of terrorism attacks. Based on the multiple r-squared=0.4789, our regression model explains 47.89% of the variation in the number of terrorism attacks that happen (n). This is appropriate because there are many factors that contribute to terrorism, and while there is a general trend upwards over time, time is not the best variable to measure terrorism attack rates.
+
+### Terrorist Attacks Globally by Country 1970-2018
+We wanted to see what countries have experienced the highest number of terrorist attacks.
+
+
+
+
+
+```{r}
+gtd%>%
+  count(country)%>%
+  arrange(desc(n))->gtd_country
+gtd_country%>%
+  print(10)
+  ## number of terrorist attacks per country since 1970 
+  ## Iraq, Afghanistan, Pakistan, and India have the highest numbers
+```
+```{r}
+ggplot(data = gtd_country)+
+  geom_bar(mapping = aes(x = country, y = n, fill = country), stat = "identity")+
+  xlab("Country")+
+  ylab("Number of Terrorist Attacks")+
+  ggtitle("Number of Terrorist Attacks per Country 1970-2018")+
+  theme(plot.title = element_text(color="black", size=14, face="bold", hjust=0.5))+
+  theme(legend.position='none')+
+  theme(axis.ticks.x=element_blank(), axis.text.x=element_blank())
+  ## too many countries
+```
+```{r}
+gtd%>%
+  count(country)%>%
+  arrange(desc(n))%>%
+  print(n=20)
+gtd_country%>%
+  filter(n>=2726)->gtd_country20
+
+
+ggplot(data = gtd_country20)+
+  geom_bar(mapping = aes(x = country, y = n, fill = country), stat = "identity")+
+  scale_x_discrete(guide=guide_axis(angle = 45))+
+  xlab("Country")+
+  ylab("Number of Terrorist Attacks")+
+  ggtitle("Number of Terrorist Attacks per Country 1970-2018, Top 20")+
+  theme(plot.title = element_text(color="black", size=14, face="bold", hjust=0.5))+
+  theme(legend.position='none')+
+  geom_text(aes(x = country, y = n, label = n), vjust = 2,
+            size = 3, color = "blue")
+
+
+
+
+## bar graph for only the top 20 countries
+```
+Based on the data table,  5 out of the 10 countries with the highest number of recorded terrorist incidents are in Central Asia and Middle East regions. Also,  3 out of the 10 countries with the highest number of recorded terrorist incidents are in South American. This makes sense because both regions have high rates of violence, failed regimes, and political instability. For the graphs, we decided to only look at the 20 countries with the highest counts of terrorism attacks because looking at 205 countries was not useful. Note the U.S. appears in the top 20 count. 
+
+### Fatalities Globally 
+```{r}
+gtd%>%
+summarize(CountKilled=sum(killed,na.rm=TRUE),CountWounded=sum(wounded,na.rm=TRUE))
+
+
+gtd%>%
+  group_by(country)%>%
+  summarize(CountKilled=sum(killed,na.rm=TRUE),CountWounded=sum(wounded,na.rm=TRUE))->killedCountry
+killedCountry
+
+killedCountry%>%
+filter(CountKilled>10000)%>%
+  arrange(desc(CountKilled))->killedCountry2
+killedCountry2
+
+
+
+ggplot(data = killedCountry2)+
+  geom_bar(mapping = aes(x = CountKilled, y = country,fill=country), stat = "identity")+
+    xlab("No. of Killing  since 1970")+
+  ylab("Country")+
+  ggtitle("Number of Killings per Country 1970-2018, Over 10000 killings")+
+    theme(plot.title = element_text(color="black", size=3, face="bold", hjust=2))+
+    geom_text(aes(x = CountKilled, y = country, label = CountKilled), vjust = 0.2,
+            size = 3, color = "black")
+
+```
+
+The above bar chart is the representation of number of Killings due to terrorist activities for different countries since 2021 and with killings more than 10000. Evidently, Iraq,Afghanistan, Pakistan and India has most no. of deaths/killings becuuse of terrorism. It will be interesting to study how the killings is faring over years since 1970 for each of these countries. 
+
+
+### Terrorist Attacks in the U.S. 1970-2018
+We wanted to see the trend of terrorist attacks in the U.S. over the given time period.
+The data shows the total no. of Deaths/Killing and Total no. of Wounded people due to terrorist attack and activities from 170-2018. 
+More than 456249 killings and 549743 wounded people.
+
+```{r}
+gtd%>%
+  filter(country=="United States")->gtdus
+
+gtdus<-subset(gtdus, select = -c(country,region))
+gtdus
+  ## gtdus is the data for the terrorist attacks in the U.S. only
+dim(gtdus)
+  ## 3004 rows and 14 columns
+```
+
+Filtered the data specific to the United States. 
+
+```{r}
+gtdus%>%
+  count(year)%>%
+  arrange(desc(n))->gtdus_year
+gtdus_year%>%
+  print(10)
+  ## number of terrorist attacks per year since 1970 
+  ## 1970, 1971, 1975 have the highest numbers
+```
+```{r}
+ggplot(data = gtdus_year)+
+  geom_point(mapping = aes(x = year, y = n), stat = "identity",color='red')+
+  xlab("Year")+
+  ylab("Number of Terrorist Attacks")+
+  ggtitle("Number of Terrorist Attacks in the U.S. per year 1970-2018")+
+  theme(plot.title = element_text(color="black", size=14, face="bold", hjust=0.5))
+```
+```{r}
+cor(gtdus_year)
+cor(gtdus_year$year, gtdus_year$n)
+  ## There is a moderately, negative correlation between number of attacks and the year.
+lm(n~year, data=gtdus_year)->lm_usyear
+lm_usyear
+summary(lm_usyear)
+  ## number of terrorist attacks = 5085.846 + year(-2.519)
+  ## On average, for every one year increase, the number of terrorist attacks decreases by 2.519.
+```
+```{r}
+ggplot(data = gtdus_year)+
+  geom_point(mapping = aes(x = year, y = n), stat = "identity",color='red')+
+  xlab("Year")+
+  ylab("Number of Terrorist Attacks")+
+  ggtitle("Number of Terrorist Attacks in the U.S. per year 1970-2018")+
+  theme(plot.title = element_text(color="black", size=14, face="bold", hjust=0.5))+
+  geom_smooth(aes(x = year, y = n),method = "lm", col = "green", se=FALSE)
+```
+
+```{r}
+ggplot(data = gtdus_year)+
+  geom_bar(mapping = aes(x = year, y = n), fill = "lightblue", stat = "identity")+
+  xlab("Year")+
+  ylab("Number of Terrorist Attacks")+
+  ggtitle("Number of Terrorist Attacks in the U.S. Per Year Since 1970")+
+  theme(plot.title = element_text(color="black", size=14, face="bold", hjust=0.5))+
+  theme(legend.position='none')
+
+gtdus%>%
+  filter(year==1993)
+  ## no recorded terrorist attacks in 1993
+```
+The data table shows there were 3004 terrorist attacks in the U.S. between 1970-2018. 1970 is the year with the highest number of terrorism attacks and the 1970s is the decade with highest number of terrorism attacks. We ran a linear regression model to check if there is relationship between year and the number of terrorism attacks that happen (n). We found that on average, the number of terrorist attacks decreases by 2.519. We also ran a correlation test and found that the correlation coefficient=-0.5129769 so there is a moderate, negative correlation between year and the number of terrorism attacks. Based on the multiple r-squared=0.2631, our regression model explains 26.31% of the variation in the number of terrorism attacks that happen (n). This is appropriate because American law enforcement and the intelligence community have made counterterrorism their priority since the increases in violence exhibited by extremist groups in the 1970s. 
+
+### Terrorist Attacks in the U.S. per State 1970-2018
+We wanted to see the trend of terrorist attacks in the U.S. over the given time period per state. 
+```{r}
+gtdus%>%
+  count(provstate)%>%
+  arrange(desc(n))->gtdus_provstate
+gtdus_provstate%>%
+  print(n=10)
+gtdus_provstate
+  ## number of terrorist attacks per state since 1970 
+  ## California, New York, and Puerto Rico have the highest numbers
+```
+```{r}
+ggplot(data = gtdus_provstate)+
+  geom_bar(mapping = aes(x = provstate, y = n, fill = provstate), stat = "identity")+
+  scale_x_discrete(guide=guide_axis(angle = 45))+
+  xlab("State")+
+  ylab("Number of Terrorist Attacks")+
+  ggtitle("Number of Terrorist Attacks in the U.S. by State Since 1970")+
+  theme(plot.title = element_text(color="black", size=14, face="bold", hjust=0.5))+
+  theme(legend.position='none')
+## too many states
+```
+```{r}
+gtdus_provstate%>%
+  filter(n>=61)->gtdus_provstate10
+
+
+library(ggrepel)
+gtdus_provstate10
+ggplot(data = gtdus_provstate10)+
+  geom_bar(mapping = aes(x = provstate, y = n, fill = provstate), stat = "identity")+
+  scale_x_discrete(guide=guide_axis(angle = 45))+
+  xlab("State")+
+  ylab("Number of Terrorist Attacks")+
+  ggtitle("Number of Terrorist Attacks in the U.S. by State Since 1970, Top 10")+
+  theme(plot.title = element_text(color="black", size=14, face="bold", hjust=0.5))+
+  theme(legend.position='none')+
+    geom_label_repel(aes(x = provstate, y = n, label = n), vjust = 1,
+            size = 3, color = "black",position="stack",stat="identity")
+
+
+```
+
+Based on the data table and graphs, California and New York have the highest rates of terrorism attacks from 1970-2018. Texas, Florida, and D.C. also have high rates of terrorist incidents. That makes sense because these are states of high populations and have political significance. However, the high rate of terrorism attacks in Puerto Rico does not make sense. 
+
+### Fatalities in the U.S. by State 
+
+```{r}
+gtd%>%
+  filter(country=='United States')%>%
+  summarize(CountKilled=sum(killed,na.rm=TRUE),CountWounded=sum(wounded,na.rm=TRUE))->killedus
+killedus
+ 
+gtd%>%
+  filter(country=='United States')%>%
+  group_by(provstate)%>%
+  summarize(CountKilled=sum(killed,na.rm=TRUE),CountWounded=sum(wounded,na.rm=TRUE))->killedus2
+killedus2
+
+killedus2%>%
+filter(CountKilled>20)->killedus50
+
+library(ggrepel)
+
+ggplot(data = killedus50,aes(y = provstate, x = CountKilled,fill=CountKilled))+
+  geom_point()+
+  xlab("Number Killed")+
+  ylab("State")+
+  ggtitle("Fatalities in the U.S. by State Since 1970, Top 10")+
+  theme(plot.title = element_text(color="black", size=14, face="bold", hjust=0.5))
+   geom_text_repel(mapping=aes(label=CountKilled))
+```
+
+The data above shows the top 10 states with the the number of total confirmed fatalities for the incident.  New York has the maximum fatalities and clearly is an outlier with over 2800 fatalities. The incident at 9/11 incident is one of the cases in point when over 2000 people civilians lost their lives in the incident. l
+
+### Terrorist Attacks in the U.S. by Target Groups 
+```{r}
+gtdus%>%
+  count(target)%>%
+  arrange(desc(n))->target1
+target1
+
+ggplot(data = target1) +
+  geom_point(mapping = aes(x=n, y = target) )
+
+ggplot(data = target1) +
+  geom_point(mapping = aes(x=n,
+  y = fct_reorder(target,n),color='red'))+
+  xlab("Number of Terrorist Attacks")+
+  ylab("Target Groups")+
+  ggtitle("Number of Terrorist Attacks on Target Groups of US")+
+  theme(plot.title = element_text(color="black", size=14, face="bold", hjust=0.5))+
+  theme(legend.position='none')
+
+```
+
+Based on the data table and graphs, Business ,Private Citizens & Property and G-General are the most targeted groups by the terrorist in the United States. Business groups being the highest with No. of Terrorist attacks more than 800.Large-scale attacks, most infamously the World Trade Center bombings on Sept. 11, 2001, destroyed billions of dollars worth of property and senselessly kill thousands of productive workers and Icreased Uncertainty in the Markets.
+
+
+### Terrorist Attacks Globally by Type of Attack
+```{r}
+gtd%>%
+  count(attack)%>%
+  arrange(desc(n))->gtd_attack
+gtd_attack
+  ## The most frequent types of attacks used for a terrorist purpose are bombings/explosions and armed assaults.
+```
+```{r}
+gtd%>%
+mutate(attack= fct_infreq(attack)) -> gssm
+gssm
+
+library(ggrepel)
+
+ggplot(data = gssm) +
+  geom_bar(mapping = aes(x=attack,fill=attack))+
+    scale_x_discrete(guide=guide_axis(angle = 45))+
+    xlab("Type of Attack")+
+  ylab("Number of Terrorist Attacks")+
+  ggtitle("Terrorist Attacks Globally by Attack Type")+
+    theme(plot.title = element_text(color="black", size=14, face="bold", hjust=0.5))+
+  theme(legend.position='none')
+
+## percentages
+bpattack<-ggplot(gtd_attack, aes(x="", y = n, fill=attack))+
+  geom_bar(width = .5, stat = "identity") 
+bpattack
+  ## Stacked Bar Chart
+a<-c(95402,47419,20897,13198,11636,9590,1183,1124,734)
+percattack<- round(100*a/sum(a), 2)
+percattack
+  ## percentage labels 
+ggplot(gtd_attack, aes(x="", y=n, fill=attack)) +
+  ggtitle("Terrorist Attacks Globally by Attack Type")+
+  theme(plot.title = element_text(color="black", size=14, face="bold", hjust=0.5))+
+  geom_bar(stat="identity", width=1) +
+  coord_polar("y") +
+  geom_text(aes(label = paste0(percattack, "%")), position = position_stack(vjust=0.5))+
+  theme_void()
+```
+From the graphs above, Terrorist have used 'Bombing' and 'Armed Assault' most often as the type of attack to cause terrorism, globally. As a future research, it will be interesting to study how and from where the terrorist groups are getting funded from. 
+
+
+### Terrorist Attacks Globally by Weapon Type 
+
+```{r}
+gtd%>%
+  count(weapon)%>%
+  arrange(desc(n))->gtd_weapon
+gtd_weapon
+
+bpweapon<-ggplot(gtd_weapon, aes(x="", y = n, fill=weapon))+
+  geom_bar(width = .5, stat = "identity") 
+bpweapon
+  ## Stacked Bar Chart
+b<-c(100333,64923,18462,12445,4115,344,175,170,134,36,33,13)
+perweapon<- round(100*b/sum(b), 2)
+perweapon
+  ## percentage labels 
+ggplot(gtd_weapon, aes(x="", y=n, fill=weapon)) +
+  ggtitle("Terrorist Attacks Globally by Weapon Type")+
+  theme(plot.title = element_text(color="black", size=14, face="bold", hjust=0.5))+
+  geom_bar(stat="identity", width=1) +
+  coord_polar("y") +
+  geom_text(aes(label = paste0(perweapon, "%")), position = position_stack(vjust=0.4))+
+  theme_void()
+```
+The stacked bar graph and pie chart suggests that the terrorists have used 'Explosives' , 'Firearm' the most as the type of weapon to cause destruction.  
